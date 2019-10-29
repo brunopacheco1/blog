@@ -12,15 +12,11 @@ pygmentscodefencesguesssyntax = true
 pygmentsUseClasses = true
 
 [params]
-    author = "Bruno Pacheco" # Author's name.
-    info = "Software Engineer" # Author's job title or info.
+    author = "Bruno Pacheco" 
+    info = "Software Engineer"
     description = "Bruno Pacheco's personal website"
     keywords = "blog,developer,personal"
     avatarurl = "images/avatar.jpg"
-
-    footercontent = "Enter a text here."
-    fixedbarContent = "Do you want to know me more private?→"
-    fixedbarContentAfter = "Thank You! Please share it if you like it→"
 
     hideCredits = false
     hideCopyright = false
