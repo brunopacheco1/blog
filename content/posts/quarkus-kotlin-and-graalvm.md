@@ -16,31 +16,137 @@ Why [Quarkus](https://quarkus.io)? Well, I've read an article saying that Quarku
 
 ### Starting the adventure
 
-I've started the project just reading the guides on Quarkus.io, which in the beginning looked quite hands-on, and as any recent framework for web development, it was really simple to code, in five minutes I had a rest service running locally, but of course a http call returning a Hello World string doesn't deserve to be called a service.
+I've started the project just reading the guides on Quarkus.io, which are quite hands-on, but very superficial. Quarkus, as any recent framework for web development, is really simple to code, so simple that in five minutes I had a rest service running locally... of course a http call returning a Hello World string doesn't deserve to be called a service, does it?
 
-First steps, new domain and DTO classes, JPA, H2 and a couple of CRUD endpoints. Now something to start with, isn't it? Yes, and I decided to migrate the code to Kotlin... Bugs were popping up!
+In order to start, they have implemented a bootstrap command, like the following copied from Quarkus.io.
 
-First problem, JPA requires open classes and by default it's not true in Kotlin. To fix it, Kotlin compiler has a plugin supporting JPA, just a flag.
+```
+mvn io.quarkus:quarkus-maven-plugin:1.0.0.CR1:create \
+    -DprojectGroupId=org.acme \
+    -DprojectArtifactId=getting-started \
+    -DclassName="org.acme.quickstart.GreetingResource" \
+    -Dpath="/hello"
+```
 
-Second problem, Quarkus by default uses JSON-B for serialization, but when moving the code to Kotlin, it started failing and some workarounds were required for the DTOs. At the end I decided to try Jackson and it worked nice, not bugs here and the DTOs were cleaner then before. Latter on, I had also to add a no-arg plugin option, a custom annotation in the DTOs in order to remove the extra constructor method, and all properties have to be var.
+To add new dependencies:
 
-Third problem, similarly to the JPA entities, all managed beans have to be open, so one more flag to the Kotlin compiler to understand things correctly.
+```
+mvn quarkus:add-extension -Dextensions="vertx"
+```
 
-Fourth problem, I created an abstract Repository class, to simulate the spring repositories and have a common behavior for all entities repos, but here again some strange problem with the dependency injection in the superclass. The work around was the following:
+Moving on, my first steps were defining the domain, JPA, H2, a couple of CRUD endpoints and some DTOs. After having this squared shape code, I decided to migrate the code to Kotlin, and bugs started popping up as expected.
+
+The first problem I have face was the JPA. It requires open classes and by default that it's not true on Kotlin. To fix it, there's a flag to enable JPA support during compilation. I personally don't like this kind of solution, but this is kind of my fault as I'm using a mature Java library.
+
+The second problem was the JSON payload serialization. I had some issues with the default Quarkus dependency, JSON-B, and then I decided trying Jackson out, again for the sake of simplicity, as I was already testing tons of new things. It worked nice, the DTOs were cleaner then before. For that, another plugin had to be added to the kotlin compiler, the no-arg plugin option and a custom annotation to identify the DTOs.
+
+```
+@Dto
+data class MatchMapPlayer(
+        var playerId: Long,
+        var status: MatchPlayerStatus = MatchPlayerStatus.PLAYING,
+        var wormLength: Int = 0,
+        var direction: Direction = Direction.DOWN,
+        var position: List<MapPoint> = arrayListOf()
+)
+```
+
+The third problem, similarly to the JPA issue, all managed beans have to be open, so one more flag to the Kotlin compiler to understand things correctly. Can you guess the solution? Yes, another kotlin compiler plugin.
+
+So, at the end my koltin compiler configuration looked like this:
+
+```
+                <configuration>
+                    <compilerPlugins>
+                        <plugin>jpa</plugin>
+                        <plugin>no-arg</plugin>
+                        <plugin>all-open</plugin>
+                    </compilerPlugins>
+                    <pluginOptions>
+                        <option>all-open:annotation=javax.ws.rs.Path</option>
+                        <option>all-open:annotation=javax.enterprise.context.ApplicationScoped</option>
+                        <option>all-open:annotation=javax.enterprise.context.RequestScoped</option>
+                        <option>all-open:annotation=javax.ws.rs.ext.Provider</option>
+                        <option>all-open:annotation=javax.persistence.MappedSuperclass</option>
+                        <option>all-open:annotation=javax.persistence.Entity</option>
+                        <option>all-open:annotation=javax.persistence.Embeddable</option>
+                        <option>no-arg:annotation=com.dev.bruno.worms.dto.Dto</option>
+                    </pluginOptions>
+                </configuration>
+```
+
+Fourth problem, I created an abstract Repository class to have a common behavior for all entities repos, but here I had a problem with the dependency injection in the superclass. I tried using contructor dependency injection, passing it from the child to the superclass using super, but nothing worked properly. The work around was injecting the EntityManager directly in the field, like this:
 
 ```
     @PersistenceContext
     protected lateinit var em: EntityManager
 ``` 
 
-A bit odd, because I was trying to inject it via constructor, but for some reason it wasn't working, so it is as it is until now.
-
-Fifth problem, for all @OneToMany I had to change from List/Set to MutableList/MutableSet.
+Fifth problem, I had to change all @OnToMany from List/Set to MutableList/MutableSet.
 
 Sixth problem, I don't remember why, but now all fields in the domain and DTO classes are var, instead of val. I have to check why again.
 
+I've also implemented some business code, which are not important to discuss here (but if you are interested, go to this [link](https://github.com/brunopacheco1/worms/tree/master/src/main/kotlin/com/dev/bruno/worms/evaluation).
+
+### And GraalVM enters in the scene...
+
+After trespassing the first barrier, I was ready for the next boss (the final one?). And according to Quarkus.io, it shouldn't be complicated, their aim is to simplify native code compilation using their on maven plugin, and they are not lying, even being simplists in the guides.
+
+To do that, you have to run a simple mvn commmand:
+
+```
+mvn clean package -Pnative -Dnative-image.docker-build=true
+```
+
+By the way, I was build the native code app and deploying using docker, that's why there's this docker-build arg, as the build a optimized app for docker. They also provide a dockerfile sample, to follow.
+
+I thought at this stage that would be enough, but no. After running the build, which consumes huge memory and CPU (almost killed my old lenovo :(), and running the app, I faced some an error with Jackson, as reflection is not supported by default on native code. It took me a while to understand why, and a bit more to find a way to fix it.
+
+GraalVM does allow you to use reflection, but for that you have to add a config file, located at "META-INF/native-image/reflect-config.json" (it can be in a different folder with a different name, but this is the default path).
+
+First I decided not writing manually this file, and I've found this [blog](https://medium.com/graalvm/introducing-the-tracing-agent-simplifying-graalvm-native-image-configuration-c3b56c486271) explaining a tracing agent to this file writting job. So, its idea is to observe the JVM during runtime and write the config.
+
+To do this, you simply have to run the app with the following command:
+
+```
+$JAVA_HOME/bin/java -agentlib:native-image-agent=config-output-dir=META-INF/native-image your.jar
+```
+
+At the end, the generated file was hugely poluted and it didn't fix the problem, because the agent didn't add all needed classes. So, I ended up creating the file manually. And surprisingly, I had to add only the DTO classes.
+
+The file has to be have something like this:
+
+```
+[
+  {
+    "name": "com.dev.bruno.worms.dto.ExceptionResponse",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredClasses": true,
+    "allPublicClasses": true,
+    "fields": [
+      {
+        "name": "message",
+        "allowWrite": true
+      }
+    ]
+  }
+  ...
+]
+```
+
 ### Conclusions
 
-About Kotlin, I do reconize the benefits of using Kotlin such as nullability, immutability, less verbose code, tons of new coder-friendly functions, however they are not that important when you have a clean code and efficient testing.
+About Kotlin, I do reconize the benefits of using Kotlin such as nullability, immutability, less verbose code, tons of new coder-friendly functions, however they are not that important when you have a clean code and efficient testing. Also, I personally don't like poluted POM files and having to add build plugins and plugin plugins annoyed me. I felt guilt about using JPA and Jackson though, perhaps if I had used something more Kotlin oriented, I wouldn't have had these issues. Lets see it again in the next project.
+
+About Quarkus. It has a insanelly fast startup indeed, and the memory footprint is great, I have used a micro instance on Google Cloud to test the game I handled properly, without crashing anything. It's a bit imature yet, as it required some refactoring when I decided moving to newer versions. It is promissing anyway, as it has huge support for different technologies and libraries. Definetelly, I'll use it again.
+
+About GraalVM, I loved it in the first sight, as the wish of a poliglot code is in my mind for a while and now it's becoming true. At the end, I didn't use this feature, however the native code generation facinated me as well, and it's quite nice. I didn't like to way how it consumes resources though, compiling any other language code is not consuming 10% of what GraalVM has consumed from my machine. Lets wait for improvements to benefit from this feature.
+
+In general, I really enjoyed playing with all this new technologies at the same time. Due to time and availability constrains, I couldn't investigate more, perhaps improving and refactoring the code, but the final solution is not bad and it proved to myself that Java definately can be used in the cloud, it's just a mater of investment in new solutions, like Quarkus and GraalVM.
+
+Please, refer to the project [repository](https://github.com/brunopacheco1/worms) to have a better picture of what I have coded. And feel free to comment out there.
 
 **See you | Bis dann | Até mais | À bientôt**
