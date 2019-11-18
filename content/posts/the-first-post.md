@@ -18,4 +18,4 @@ So, the idea here is just sharing my experiments with libs, languages, tools, Op
 
 Especial thanks to [László](https://github.com/nerg4l) for pushing me to do that and showing this great tool, [Hugo](https://gohugo.io/)!
 
-See you | Bis dann | Até mais | À bientôt
+** See you | Bis geschwënn | Até mais | À bientôt **
