@@ -97,7 +97,7 @@ I've also implemented some business code, which is not important to discuss here
 
 After trespassing the first barrier, I was ready for the next boss (the final one?): compiling the project to native code.
 
-According to Quarkus.io, this shouldn't be complicated, as they aim to simplify native code compilation using their on maven plugin. Even their guides being simplistic, they are not lying. But they could have mentioned the Reflection limitation in Quarkus, which will be explained in the following lines.
+According to Quarkus.io, this shouldn't be complicated as they aim to simplify native code compilation using their on maven plugin. Even their guides being simplistic, they are not lying. But they could have mentioned the Reflection limitation in GraalVM, which will be explained in the following lines.
 
 So, to build the app, you have to run a similar mvn command:
 
