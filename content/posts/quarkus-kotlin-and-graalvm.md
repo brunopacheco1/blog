@@ -105,9 +105,9 @@ So, to build the app, you have to run a similar mvn command:
 mvn clean package -Pnative -Dnative-image.docker-build=true
 ```
 
-By the way, I was building a containerized native code, that's why there's this docker-build arg, to compile an optimized app for docker. They also provide a dockerfile sample.
+By the way, I was building a containerized native code, that's why there's this docker-build arg. They also provide a dockerfile sample.
 
-I thought at this stage that would be enough, but no. After running the build and running the app, I faced an error on Jackson, as reflection is not supported by default on native code. It took me a while to understand why, and a bit more to find a way to fix it.
+I thought at this stage that would be enough, but no. After running the build and running the app on Docker, I faced exceptions on Jackson. So, reflection is not supported by default on native code and it took me a while to understand why, and a bit more to find a way to fix it.
 
 On a side note, the build consumes a lot of memory and CPU, almost killing my old Lenovo. :(
 
