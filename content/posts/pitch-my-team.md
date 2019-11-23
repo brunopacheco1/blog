@@ -20,3 +20,5 @@ I was surprised a bit in the beginning. Twenty teams were competing, and many of
 So, I would like to register this moment in this blog. I am really happy of being part of this team!
 
 ![Selfie right after the presentation](/images/pitch_my_team_after_presentation.jpg)
+
+**See you | Bis geschwënn | Até mais | À bientôt**
